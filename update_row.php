@@ -11,6 +11,25 @@ function cleanNumeric($numStr)
     return str_replace([",", " "], "", trim($numStr));
 }
 
+// Add the date conversion function here.
+function convertDate($dateStr)
+{
+    $dateStr = trim($dateStr);
+    if (empty($dateStr)) {
+        return null;
+    }
+    // Try multiple acceptable formats: dd/mm/yyyy, dd/mm/yy, m/d/Y, m/d/y.
+    $formats = ['d/m/Y', 'd/m/y', 'm/d/Y', 'm/d/y'];
+    foreach ($formats as $format) {
+        $dateObj = DateTime::createFromFormat($format, $dateStr);
+        $errors = DateTime::getLastErrors();
+        if ($dateObj && $errors['warning_count'] === 0 && $errors['error_count'] === 0) {
+            return $dateObj->format('Y-m-d');
+        }
+    }
+    throw new Exception("Invalid date format: '$dateStr'");
+}
+
 try {
     $rawInput = file_get_contents('php://input');
     $data = json_decode($rawInput, true);
@@ -19,7 +38,6 @@ try {
         exit;
     }
     $updates = $data['updates'];
-
 
     // Prepare an UPDATE statement that updates only the invoice details.
     $sql = "UPDATE sale_statements
@@ -47,14 +65,13 @@ try {
             ':amount_not_settled' => cleanNumeric($row['amount_not_settled']),
             ':status' => trim($row['status']),
             ':billing_no' => trim($row['billing_no']),
-            ':due_date' => trim($row['due_date']),
+            ':due_date' => convertDate(trim($row['due_date'])), // Date conversion here.
             ':remark1' => trim($row['remark']),
             ':remark2' => trim($row['remark']),
             ':sale1' => trim($row['sale']),
             ':sale2' => trim($row['sale']),
             ':id' => (int) $row['id']
         ]);
-
     }
     echo json_encode(['status' => 'success', 'message' => 'Changes saved successfully!']);
 } catch (Exception $e) {

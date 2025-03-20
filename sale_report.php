@@ -56,7 +56,7 @@ foreach ($rows as $row) {
 
 <head>
   <meta charset="UTF-8">
-  <title>รายงานเปิดบิลคงค้าง</title>
+  <title>รายงานบิลคงค้าง</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -128,7 +128,6 @@ foreach ($rows as $row) {
 
     hr {
       border: 0;
-      border-collapse: collapse;
       margin: 0px 0;
     }
 
@@ -153,19 +152,39 @@ foreach ($rows as $row) {
 
     .cust-header {
       background-color: white;
-
       text-align: left;
       padding: 0px;
     }
 
     .cust-total {
-
       background-color: white;
     }
   </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body>
+
+  <!-- Dropdown filter for Sales Responsible -->
+  <div class="filter-form">
+    <form method="get" action="">
+      <label for="sale_responsible">Select Sales Responsible: </label>
+      <select name="sale_responsible" id="sale_responsible">
+        <option value="ALL" <?php if ($selectedSaleResp == "ALL")
+          echo "selected"; ?>>-- All --</option>
+        <?php foreach ($saleResponsibles as $sr): ?>
+          <option value="<?php echo htmlspecialchars($sr); ?>" <?php if ($selectedSaleResp == $sr)
+               echo "selected"; ?>>
+            <?php echo htmlspecialchars($sr); ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+      <button type="submit">Filter</button>
+    </form>
+  </div>
+
+
   <!-- Wrap the entire report in a container -->
   <div id="reportContent">
     <div class="report-header">
@@ -175,28 +194,12 @@ foreach ($rows as $row) {
     <div class="header-line" style="font-size:1.0rem; color:#333;">
       <?php
       echo "<p>Sale Responsible:  " . htmlspecialchars($selectedSaleResp) . "</p>";
-      echo "<p>จำนวนบิลทั้งหมด:  " . $grandCount . "     บิล " . "</p>" ;
-      echo "<p>ยอดรวมทั้งหมด:  " . number_format($grandTotal, 2) . "    บาท" . "</p>" ;
+      echo "<p>จำนวนบิลทั้งหมด:  " . $grandCount . " บิล</p>";
+      echo "<p>ยอดรวมทั้งหมด:  " . number_format($grandTotal, 2) . " บาท</p>";
       ?>
     </div>
     <hr>
-    <!-- Dropdown filter for Sales Responsible -->
-    <div class="filter-form">
-      <form method="get" action="">
-        <label for="sale_responsible">Select Sales Responsible: </label>
-        <select name="sale_responsible" id="sale_responsible">
-          <option value="ALL" <?php if ($selectedSaleResp == "ALL")
-            echo "selected"; ?>>-- All --</option>
-          <?php foreach ($saleResponsibles as $sr): ?>
-            <option value="<?php echo htmlspecialchars($sr); ?>" <?php if ($selectedSaleResp == $sr)
-                 echo "selected"; ?>>
-              <?php echo htmlspecialchars($sr); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-        <button type="submit">Filter</button>
-      </form>
-    </div>
+
     <?php
     if (!$rows) {
       echo "<p>No data found.</p>";
@@ -226,9 +229,11 @@ foreach ($rows as $row) {
         $currentCity = null;
         $currentCustomer = null;
       }
+
       $saleRespTotal += $invoiceAmount;
 
-      // --- Group by State ---
+
+      // --- Group by State (show once per state) ---
       if ($row['state'] !== $currentState) {
         if ($currentState !== null) {
           echo "<hr>";
@@ -236,10 +241,14 @@ foreach ($rows as $row) {
         $currentState = $row['state'];
         $stateCount = isset($stateCounts[$currentState]) ? $stateCounts[$currentState] : 0;
         $stateTotal = isset($groupedStateTotals[$currentState]) ? $groupedStateTotals[$currentState] : 0;
-        echo "<div class='header-line'>State: " . htmlspecialchars($currentState) .
-          " | Invoice Count (State): " . $stateCount .
-          " | Total Bill (State): " . number_format($stateTotal, 2) . "</div>";
+        echo "<div class='header-line'>เขตการขายจังหวัด(State): " . htmlspecialchars($currentState) .
+          " | จำนวนบิล: " . $stateCount . " | ยอดรวม: " . number_format($stateTotal, 2) . "</div>";
       }
+
+
+
+
+
 
       // --- Group by City ---
       $cityKey = $currentState . '|' . $row['city'];
@@ -247,7 +256,7 @@ foreach ($rows as $row) {
         if ($currentCustomer !== null) {
           // Output customer totals footer before closing previous table.
           echo "<tr class='cust-total'>
-              <td colspan='3' style='text-align:right;'>Customer Total:</td>
+              <td colspan='3' style='text-align:right;'> </td>
               <td>" . number_format($customerInvoiceTotal, 2) . "</td>
               <td>" . number_format($customerNotSettledTotal, 2) . "</td>
               <td colspan='4'></td>
@@ -257,31 +266,30 @@ foreach ($rows as $row) {
         }
         $currentCity = $row['city'];
         $cityCount = isset($cityCounts[$cityKey]) ? $cityCounts[$cityKey] : 0;
-        // Independent header for the city.
+        // City header without reprinting state.
         echo "<div class='city-header'>";
-        echo "City: " . htmlspecialchars($currentCity) . " | ";
-        echo "State: " . htmlspecialchars($currentState) . " | ";
-        echo "Invoice Count (City): " . $cityCount;
+        echo " " . htmlspecialchars($currentCity) . " " . $cityCount;
         echo "</div>";
         // Start a new table for this city.
-        echo "<div class='table-container'><table>";
-        // Add a customer header row (one set for the customer) with Customer Account and Name.
-        echo "<tr><td colspan='12' class='cust-header'>";
-        echo "Customer Account: " . htmlspecialchars($row['customer_account']) . " | ";
-        echo "Name: " . htmlspecialchars($row['name']);
+        echo "<div class='table-container'><table border='0' cellpadding='5' cellspacing='0'>";
+        // Add customer header row.
+        echo "<tr><td colspan='10' class='cust-header'>";
+        echo " " . htmlspecialchars($row['customer_account']) . " | ";
+        echo " " . htmlspecialchars($row['name']);
         echo "</td></tr>";
-        // Add column headers with new columns for Remark and Sale.
+        // Add table column headers.
         echo "<tr>
-            <th>ลำดับ</th>
-            <th>Invoice</th>
-            <th>Invoice Date</th>
-            <th>Invoice Amount</th>
-            <th>Amount Not Settled</th>
-            <th>Status</th>
-            <th>Billing NO.</th>
-            <th>Due Date</th>
-            <th>Remark</th>
-            <th>Sale</th>
+            <th> ลำดับ </th>
+            <th> Invoice </th>
+            <th> Invoice Date </th>
+            <th> Invoice Amount </th>
+            <th> Amount Not Settled </th>
+            <th> Status </th>
+            <th> Billing NO. </th>
+            <th> Due Date </th>
+            <th> Remark </th>
+            <th> Method of Payment </th>
+            <th> Sale </th>
           </tr>";
         $cityRowNum = 0;
         // Initialize customer totals.
@@ -289,23 +297,22 @@ foreach ($rows as $row) {
         $customerNotSettledTotal = 0;
         $currentCustomer = $row['customer_account'];
       } elseif ($row['customer_account'] !== $currentCustomer) {
-        // If customer changes within the same city, output totals for previous customer.
+        // New customer within the same city.
         echo "<tr class='cust-total'>
-            <td colspan='3' style='text-align:right;'>Customer Total:</td>
+            <td colspan='3' style='text-align:right;'> </td>
             <td>" . number_format($customerInvoiceTotal, 2) . "</td>
             <td>" . number_format($customerNotSettledTotal, 2) . "</td>
             <td colspan='4'></td>
           </tr>";
         echo "</table></div>";
-        // Start new customer group.
         $currentCustomer = $row['customer_account'];
         $cityRowNum = 0;
         $customerInvoiceTotal = 0;
         $customerNotSettledTotal = 0;
-        echo "<div class='table-container'><table>";
-        echo "<tr><td colspan='12' class='cust-header'>";
-        echo "Customer Account: " . htmlspecialchars($row['customer_account']) . " | ";
-        echo "Name: " . htmlspecialchars($row['name']);
+        echo "<div class='table-container'><table border='0' cellpadding='5' cellspacing='0'>";
+        echo "<tr><td colspan='10' class='cust-header'>";
+        echo " " . htmlspecialchars($row['customer_account']) . " | ";
+        echo " " . htmlspecialchars($row['name']);
         echo "</td></tr>";
         echo "<tr>
             <th>ลำดับ</th>
@@ -317,6 +324,7 @@ foreach ($rows as $row) {
             <th>Billing NO.</th>
             <th>Due Date</th>
             <th>Remark</th>
+            <th>Method of Payment</th>
             <th>Sale</th>
           </tr>";
       }
@@ -336,7 +344,6 @@ foreach ($rows as $row) {
         ? date('d/m/Y', strtotime($dueDate))
         : "";
 
-
       echo "<tr data-id='" . htmlspecialchars($row['id']) . "'>";
       echo "<td>" . $cityRowNum . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['invoice']) . "</td>";
@@ -347,12 +354,13 @@ foreach ($rows as $row) {
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['billing_no']) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($dueDateFormatted) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['remark']) . "</td>";
+      echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['method_of_payment']) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['sale_responsible']) . "</td>";
       echo "</tr>";
     }
     if ($currentCustomer !== null) {
       echo "<tr class='cust-total'>
-          <td colspan='3' style='text-align:right;'>Customer Total:</td>
+          <td colspan='3' style='text-align:right;'> </td>
           <td>" . number_format($customerInvoiceTotal, 2) . "</td>
           <td>" . number_format($customerNotSettledTotal, 2) . "</td>
           <td colspan='4'></td>
@@ -377,7 +385,6 @@ foreach ($rows as $row) {
       function saveChanges() {
         let rows = document.querySelectorAll('tr[data-id]');
         let updates = [];
-
         rows.forEach(row => {
           let id = row.getAttribute('data-id');
           let cells = row.querySelectorAll('td');
@@ -398,7 +405,6 @@ foreach ($rows as $row) {
             sale: cells[9].innerText.trim()
           });
         });
-
         fetch('update_row.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -414,36 +420,124 @@ foreach ($rows as $row) {
           });
       }
 
+
       // This function exports all tables within the #reportContent container to a CSV file.
       function exportToExcel() {
-        var csv = "\uFEFF";
-        // Get all tables inside the reportContent container.
-        var tables = document.querySelectorAll("#reportContent table");
-        tables.forEach(function (table) {
-          var rows = table.querySelectorAll("tr");
-          rows.forEach(function (row) {
-            var cells = row.querySelectorAll("th, td");
-            var rowData = [];
-            cells.forEach(function (cell) {
-              // Escape double quotes in the cell text.
-              var text = cell.innerText.replace(/"/g, '""');
-              rowData.push('"' + text + '"');
-            });
-            csv += rowData.join(",") + "\n";
-          });
-          csv += "\n"; // add an extra newline between tables
-        });
+        // Initialize an array to hold all rows for export.
+        var exportData = [];
 
-        var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        // Get the container that holds the entire report.
+        var container = document.getElementById("reportContent");
+
+        // Traverse container children.
+        for (var i = 0; i < container.children.length; i++) {
+          var el = container.children[i];
+
+          // Skip filter fields (do not export those elements).
+          if (el.classList.contains("filter-form")) {
+            continue;
+          }
+
+          // If it's a grouping header for State or City, add its text in a separate row.
+          if (el.classList.contains("header-line") || el.classList.contains("city-header")) {
+            exportData.push([el.innerText.trim()]);
+            // Add an empty row for spacing.
+            exportData.push([]);
+          }
+          // If it's a table container (holds your data table)
+          else if (el.classList.contains("table-container")) {
+            var table = el.querySelector("table");
+            if (table) {
+              // Get all rows from the table.
+              var rows = table.querySelectorAll("tr");
+              rows.forEach(function (row) {
+                var rowData = [];
+                // Get all header and data cells.
+                var cells = row.querySelectorAll("th, td");
+                cells.forEach(function (cell) {
+                  rowData.push(cell.innerText.trim());
+                });
+                exportData.push(rowData);
+              });
+              // Add an empty row after the table for spacing.
+              exportData.push([]);
+            }
+          }
+          // Optionally add any other block-level elements (DIV, P, etc.) if needed.
+          else if (el.tagName === "DIV" || el.tagName === "P" || el.tagName === "H2" || el.tagName === "H3") {
+            if (el.innerText && el.innerText.trim() !== "") {
+              exportData.push([el.innerText.trim()]);
+              exportData.push([]);
+            }
+          }
+          // If it's a horizontal rule, add an empty row.
+          else if (el.tagName === "HR") {
+            exportData.push([]);
+          }
+        }
+
+        // Create a worksheet from the array-of-arrays.
+        var ws = XLSX.utils.aoa_to_sheet(exportData);
+
+        // --- Apply styling ---
+        // We want to style the region from the row containing "Sale Responsible:" until the row that starts with "State:".
+        var headerStartRow = null;
+        var stateRowIndex = null;
+        // Find the row with "Sale Responsible:" in the first cell.
+        for (var i = 0; i < exportData.length; i++) {
+          if (exportData[i].length > 0 && exportData[i][0].indexOf("Sale Responsible:") === 0) {
+            headerStartRow = i;
+            break;
+          }
+        }
+        // Find the first row after that which starts with "State:".
+        if (headerStartRow !== null) {
+          for (var i = headerStartRow + 1; i < exportData.length; i++) {
+            if (exportData[i].length > 0 && exportData[i][0].indexOf("State:") === 0) {
+              stateRowIndex = i;
+              break;
+            }
+          }
+          if (stateRowIndex === null) stateRowIndex = exportData.length;
+
+          // Decode the worksheet range.
+          var range = XLSX.utils.decode_range(ws["!ref"]);
+          // Loop over each cell in rows from headerStartRow up to (but not including) stateRowIndex.
+          for (var R = headerStartRow; R < stateRowIndex; R++) {
+            for (var C = range.s.c; C <= range.e.c; C++) {
+              var cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+              if (!ws[cellAddress]) continue;
+              ws[cellAddress].s = {
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                  top: { style: "thin", color: { rgb: "000000" } },
+                  bottom: { style: "thin", color: { rgb: "000000" } },
+                  left: { style: "thin", color: { rgb: "000000" } },
+                  right: { style: "thin", color: { rgb: "000000" } }
+                }
+              };
+            }
+          }
+        }
+        // --- End styling ---
+
+        // Create a new workbook and append the worksheet.
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Report");
+
+        // Write the workbook as an XLSX file.
+        var wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        var blob = new Blob([wbout], { type: "application/octet-stream" });
         var url = URL.createObjectURL(blob);
         var a = document.createElement("a");
         a.href = url;
-        a.download = "report.csv";
+        a.download = "report.xlsx";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }
+
     </script>
 </body>
 
