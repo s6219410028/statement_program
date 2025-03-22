@@ -18,9 +18,63 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
     <meta charset="UTF-8">
     <title>Upload Excel Data</title>
     <link rel="stylesheet" href="./css/style.css">
+    <style>
+        /* Navbar styling */
+        #navbar {
+            background-color: #333;
+            overflow: hidden;
+        }
+
+        #navbar a {
+            float: left;
+            display: block;
+            color: #f2f2f2;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+
+        #navbar a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+
+        /* Fixed buttons container at top right */
+        #buttons-container {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        #buttons-container button {
+            margin: 5px;
+            padding: 8px 12px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        #buttons-container button:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 
 <body>
+    <!-- Navbar -->
+    <div id="navbar">
+        <a href="dashboard.php">Dashboard</a>
+        <a href="sale_report.php">Sale Report</a>
+    </div>
+
+    <!-- Fixed Save Button -->
+    <div id="buttons-container">
+        <button type="button" id="saveData">Save Data</button>
+    </div>
+
     <?php
     if (isset($_FILES['excel_file'])) {
         $filename = $_FILES['excel_file']['tmp_name'];
@@ -39,7 +93,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
             // Assume the first row contains headers
             $headers = array_shift($sheetData);
 
-            // Display the data in a table with headers horizontally
+            // Display the data in a table with headers horizontally inside a form.
             echo '<form id="editForm">';
             echo '<table border="1" cellpadding="5" cellspacing="0">';
 
@@ -55,7 +109,6 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
             // Data rows
             foreach ($sheetData as $row) {
                 echo '<tr>';
-                // Loop through the headers keys to ensure we output data in the same order as headers
                 foreach ($headers as $colKey => $header) {
                     // If a value is missing, default to an empty string
                     $cell = isset($row[$colKey]) ? $row[$colKey] : '';
@@ -66,7 +119,6 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
             }
 
             echo '</table>';
-            echo '<button type="button" id="saveData">Save Data</button>';
             echo '</form>';
 
         } catch (Exception $e) {
