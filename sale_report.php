@@ -202,10 +202,23 @@ foreach ($rows as $row) {
     #buttons-container button:hover {
       background-color: #45a049;
     }
+
+    /* Loading screen styling */
+    #loadingScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      z-index: 3000;
+    }
   </style>
-
-
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
@@ -222,6 +235,11 @@ foreach ($rows as $row) {
     <button class="save-button" onclick="saveChanges()">Save Changes</button>
     <button class="export-button" onclick="exportToExcel()">Export to Excel</button>
     <button class="delete-button" onclick="deleteData()">Delete Data</button>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loadingScreen">
+    <span>Loading...</span>
   </div>
 
   <!-- Dropdown filter for Sales Responsible -->
@@ -289,7 +307,6 @@ foreach ($rows as $row) {
 
       $saleRespTotal += $invoiceAmount;
 
-
       // --- Group by State (show once per state) ---
       if ($row['state'] !== $currentState) {
         if ($currentState !== null) {
@@ -298,8 +315,8 @@ foreach ($rows as $row) {
         $currentState = $row['state'];
         $stateCount = isset($stateCounts[$currentState]) ? $stateCounts[$currentState] : 0;
         $stateTotal = isset($groupedStateTotals[$currentState]) ? $groupedStateTotals[$currentState] : 0;
-        echo "<div class='header-line'>เขตการขายจังหวัด(State):      " . htmlspecialchars($currentState) .
-          "       จำนวนบิล:     " . $stateCount . "       ยอด:     " . number_format($stateTotal, 2) . "</div>";
+        echo "<div class='header-line'>เขตการขายจังหวัด(State): " . htmlspecialchars($currentState) .
+          " จำนวนบิล: " . $stateCount . " ยอด: " . number_format($stateTotal, 2) . "</div>";
       }
       // --- Group by City ---
       $cityKey = $currentState . '|' . $row['city'];
@@ -317,21 +334,14 @@ foreach ($rows as $row) {
         }
         $currentCity = $row['city'];
         $cityCount = isset($cityCounts[$cityKey]) ? $cityCounts[$cityKey] : 0;
-        // Output custom text before showing the city name.
         echo "<div class='city-header'>";
-        echo "เขต    >>     " . htmlspecialchars($currentCity) . $cityCount;
+        echo "เขต >> " . htmlspecialchars($currentCity) . " " . $cityCount;
         echo "</div>";
-        // Start a new table for this city.
         echo "<div class='table-container'><table border='0' cellpadding='5' cellspacing='0'>";
-        // ... rest of your code for the table headers etc.
-    
-        // Add customer header row.
         echo "<tr><td colspan='11' class='cust-header'>";
-        echo "<span style='font-size:1.0em; margin-right:20px;'>      " . htmlspecialchars($row['customer_account']) . "</span>";
-        echo "<span style='font-size:1.0em;'>      " . htmlspecialchars($row['name']) . "</span>";
+        echo "<span style='font-size:1.0em; margin-right:20px;'>" . htmlspecialchars($row['customer_account']) . "</span>";
+        echo "<span style='font-size:1.0em;'>" . htmlspecialchars($row['name']) . "</span>";
         echo "</td></tr>";
-
-        // Add table column headers.
         echo "<tr>
             <th>ลำดับ</th>
             <th>Invoice</th>
@@ -346,12 +356,10 @@ foreach ($rows as $row) {
             <th>Sale</th>
           </tr>";
         $cityRowNum = 0;
-        // Initialize customer totals.
         $customerInvoiceTotal = 0;
         $customerNotSettledTotal = 0;
         $currentCustomer = $row['customer_account'];
       } elseif ($row['customer_account'] !== $currentCustomer) {
-        // New customer within the same city.
         echo "<tr class='cust-total'>
             <td colspan='3' style='text-align:right;'> </td>
             <td>" . number_format($customerInvoiceTotal, 2) . "</td>
@@ -368,7 +376,6 @@ foreach ($rows as $row) {
         echo "<span style='font-size:1.0em; margin-right:20px;'>Customer Account: " . htmlspecialchars($row['customer_account']) . "</span>";
         echo "<span style='font-size:1.0em;'>Name: " . htmlspecialchars($row['name']) . "</span>";
         echo "</td></tr>";
-
         echo "<tr>
             <th>ลำดับ</th>
             <th>Invoice</th>
@@ -384,12 +391,10 @@ foreach ($rows as $row) {
           </tr>";
       }
 
-      // Accumulate customer totals.
       $cityRowNum++;
       $customerInvoiceTotal += $invoiceAmount;
       $customerNotSettledTotal += (float) $row['amount_not_settled'];
 
-      // Format dates to dd/mm/yyyy.
       $invoiceDate = $row['invoice_date'];
       $invoiceDateFormatted = (!empty($invoiceDate) && $invoiceDate != "0000-00-00")
         ? date('d/m/Y', strtotime($invoiceDate))
@@ -406,7 +411,6 @@ foreach ($rows as $row) {
       echo "<td contenteditable='true' class='editable'>" . number_format($invoiceAmount, 2) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . number_format((float) $row['amount_not_settled'], 2) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['status']) . "</td>";
-      // New order: Remark then Due Date then Billing NO.
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['remark']) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($dueDateFormatted) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['billing_no']) . "</td>";
@@ -431,6 +435,20 @@ foreach ($rows as $row) {
     }
     ?>
     <script>
+      // Loading overlay functions
+      function showLoading() {
+        let loadingScreen = document.getElementById("loadingScreen");
+        if (loadingScreen) {
+          loadingScreen.style.display = "flex";
+        }
+      }
+      function hideLoading() {
+        let loadingScreen = document.getElementById("loadingScreen");
+        if (loadingScreen) {
+          loadingScreen.style.display = "none";
+        }
+      }
+
       // This function collects updated invoice data from each editable row and sends it to update_row.php.
       function saveChanges() {
         let rows = document.querySelectorAll('tr[data-id]');
@@ -464,6 +482,7 @@ foreach ($rows as $row) {
             sale: cells[10].innerText.trim()
           });
         });
+        showLoading();
         fetch('update_row.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -471,19 +490,21 @@ foreach ($rows as $row) {
         })
           .then(response => response.json())
           .then(result => {
+            hideLoading();
             alert(result.message);
           })
           .catch(error => {
+            hideLoading();
             console.error('Error:', error);
             alert('Error saving changes.');
           });
       }
 
-
       // Example deleteData function (adjust as needed)
       function deleteData() {
         if (confirm("Are you sure you want to delete the data for the selected sale? This action cannot be undone.")) {
           let saleResponsible = document.getElementById('sale_responsible').value;
+          showLoading();
           fetch('delete_data.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -491,6 +512,7 @@ foreach ($rows as $row) {
           })
             .then(response => response.json())
             .then(result => {
+              hideLoading();
               if (result.status === 'success') {
                 alert(result.message);
                 document.getElementById("reportContent").innerHTML = "";
@@ -499,6 +521,7 @@ foreach ($rows as $row) {
               }
             })
             .catch(error => {
+              hideLoading();
               console.error("Error:", error);
               alert("Error deleting data.");
             });
@@ -506,41 +529,30 @@ foreach ($rows as $row) {
       }
 
       // Export to Excel function using SheetJS.
-      // This function exports all tables within the #reportContent container to a CSV file.
       function exportToExcel() {
-        // Initialize an array to hold all rows for export.
         var exportData = [];
-        // Get the container that holds the entire report.
         var container = document.getElementById("reportContent");
-        // Traverse container children.
         for (var i = 0; i < container.children.length; i++) {
           var el = container.children[i];
-          // Skip filter fields.
           if (el.classList.contains("filter-form")) {
             continue;
           }
-          // If it's a grouping header for State or City, add its text in a separate row.
           if (el.classList.contains("header-line") || el.classList.contains("city-header")) {
             exportData.push([el.innerText.trim()]);
-            // Add an empty row for spacing.
             exportData.push([]);
           }
-          // If it's a table container (holds your data table)
           else if (el.classList.contains("table-container")) {
             var table = el.querySelector("table");
             if (table) {
-              // Get all rows from the table.
               var rows = table.querySelectorAll("tr");
               rows.forEach(function (row) {
                 var rowData = [];
-                // Get all header and data cells.
                 var cells = row.querySelectorAll("th, td");
                 cells.forEach(function (cell) {
                   rowData.push(cell.innerText.trim());
                 });
                 exportData.push(rowData);
               });
-              // Add an empty row after the table for spacing.
               exportData.push([]);
             }
           }
@@ -554,9 +566,7 @@ foreach ($rows as $row) {
             exportData.push([]);
           }
         }
-        // Create a worksheet from the array-of-arrays.
         var ws = XLSX.utils.aoa_to_sheet(exportData);
-        // --- Apply styling ---
         var headerStartRow = null;
         var stateRowIndex = null;
         for (var i = 0; i < exportData.length; i++) {
@@ -590,7 +600,6 @@ foreach ($rows as $row) {
             }
           }
         }
-        // --- End styling ---
         var wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Report");
         var wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });

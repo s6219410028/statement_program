@@ -22,7 +22,7 @@ try {
         throw new Exception("Invalid data: " . $rawInput);
     }
 
-    // If the data is nested under "tableData", use that array.
+    // If the data is nested under "tableData", use that array. 
     if (isset($data['tableData']) && is_array($data['tableData'])) {
         $data = $data['tableData'];
     }
