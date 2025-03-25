@@ -346,6 +346,7 @@ foreach ($rows as $row) {
             <th>Term Of Payment</th>
             <th>Billing NO.</th>
             <th>Method of Payment</th>
+            <th>Invoicing and delivery on hold</th>
             <th>Sale responsible</th>
           </tr>";
         $cityRowNum = 0;
@@ -380,6 +381,7 @@ foreach ($rows as $row) {
             <th>Term Of Payment</th>
             <th>Billing NO.</th>
             <th>Method of Payment</th>
+            <th>Invoicing and delivery on hold</th>
             <th>Sale respoonsible</th>
           </tr>";
       }
@@ -408,6 +410,7 @@ foreach ($rows as $row) {
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($termOfPayment) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['billing_no']) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['method_of_payment']) . "</td>";
+      echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['invoicing_and_delivery_on_hold'] ?? '') . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['sale_responsible']) . "</td>";
       echo "</tr>";
     }
@@ -461,9 +464,10 @@ foreach ($rows as $row) {
           // cells[7]: Term Of Payment (changed)
           // cells[8]: Billing NO.
           // cells[9]: Method of Payment
-          // cells[10]: Sale
+          // cells[10]: invoicing_and_delivery_on_hold
+          // cells[11]: Sale
           updates.push({
-            id: id,
+            id: row.getAttribute('data-id'),
             invoice: cells[1].innerText.trim(),
             invoice_date: cells[2].innerText.trim(),
             invoice_amount: cells[3].innerText.trim(),
@@ -473,8 +477,10 @@ foreach ($rows as $row) {
             term_of_payment: cells[7].innerText.trim(),
             billing_no: cells[8].innerText.trim(),
             method_of_payment: cells[9].innerText.trim(),
-            sale_responsible: cells[10].innerText.trim()
+            invoicing_and_delivery_on_hold: cells[10].innerText.trim(),
+            sale_responsible: cells[11].innerText.trim()
           });
+
         });
         showLoading();
         fetch('update_row.php', {
@@ -528,14 +534,11 @@ foreach ($rows as $row) {
         var container = document.getElementById("reportContent");
         for (var i = 0; i < container.children.length; i++) {
           var el = container.children[i];
-          if (el.classList.contains("filter-form")) {
-            continue;
-          }
+          if (el.classList.contains("filter-form")) continue;
           if (el.classList.contains("header-line") || el.classList.contains("city-header")) {
             exportData.push([el.innerText.trim()]);
             exportData.push([]);
-          }
-          else if (el.classList.contains("table-container")) {
+          } else if (el.classList.contains("table-container")) {
             var table = el.querySelector("table");
             if (table) {
               var rows = table.querySelectorAll("tr");
@@ -549,51 +552,16 @@ foreach ($rows as $row) {
               });
               exportData.push([]);
             }
-          }
-          else if (el.tagName === "DIV" || el.tagName === "P" || el.tagName === "H2" || el.tagName === "H3") {
+          } else if (el.tagName === "DIV" || el.tagName === "P" || el.tagName === "H2" || el.tagName === "H3") {
             if (el.innerText && el.innerText.trim() !== "") {
               exportData.push([el.innerText.trim()]);
               exportData.push([]);
             }
-          }
-          else if (el.tagName === "HR") {
+          } else if (el.tagName === "HR") {
             exportData.push([]);
           }
         }
         var ws = XLSX.utils.aoa_to_sheet(exportData);
-        var headerStartRow = null;
-        var stateRowIndex = null;
-        for (var i = 0; i < exportData.length; i++) {
-          if (exportData[i].length > 0 && exportData[i][0].indexOf("Sale Responsible:") === 0) {
-            headerStartRow = i;
-            break;
-          }
-        }
-        if (headerStartRow !== null) {
-          for (var i = headerStartRow + 1; i < exportData.length; i++) {
-            if (exportData[i].length > 0 && exportData[i][0].indexOf("State:") === 0) {
-              stateRowIndex = i;
-              break;
-            }
-          }
-          if (stateRowIndex === null) stateRowIndex = exportData.length;
-          var range = XLSX.utils.decode_range(ws["!ref"]);
-          for (var R = headerStartRow; R < stateRowIndex; R++) {
-            for (var C = range.s.c; C <= range.e.c; C++) {
-              var cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-              if (!ws[cellAddress]) continue;
-              ws[cellAddress].s = {
-                alignment: { horizontal: "center", vertical: "center" },
-                border: {
-                  top: { style: "thin", color: { rgb: "000000" } },
-                  bottom: { style: "thin", color: { rgb: "000000" } },
-                  left: { style: "thin", color: { rgb: "000000" } },
-                  right: { style: "thin", color: { rgb: "000000" } }
-                }
-              };
-            }
-          }
-        }
         var wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Report");
         var wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -604,7 +572,7 @@ foreach ($rows as $row) {
         a.download = "report.xlsx";
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        document.body.remove
         URL.revokeObjectURL(url);
       }
     </script>

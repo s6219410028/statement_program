@@ -28,7 +28,6 @@ function convertDate($dateStr)
             return $dateObj->format('Y-m-d');
         }
     }
-    // Return null if the date cannot be converted.
     return null;
 }
 
@@ -63,6 +62,7 @@ try {
     $updates = $data['updates'];
 
     // Define the expected update columns matching the client payload keys.
+    // We add the new field "invoicing and delivery on hold" here.
     $expectedUpdateColumns = [
         'invoice' => 'invoice',
         'invoice_date' => 'invoice_date',
@@ -73,10 +73,12 @@ try {
         'term_of_payment' => 'term_of_payment',
         'billing_no' => 'billing_no',
         'method_of_payment' => 'method_of_payment',
+        'invoicing_and_delivery_on_hold' => 'invoicing_and_delivery_on_hold',
         'sale_responsible' => 'sale_responsible'
     ];
 
-    // Prepare the UPDATE statement with the correct column name.
+    // Prepare the UPDATE statement.
+    // This statement simply overwrites the columns with the provided values.
     $sql = "UPDATE sale_statements SET
                 invoice = :invoice,
                 invoice_date = :invoice_date,
@@ -87,13 +89,13 @@ try {
                 term_of_payment = :term_of_payment,
                 billing_no = :billing_no,
                 method_of_payment = :method_of_payment,
+                invoicing_and_delivery_on_hold = :invoicing_and_delivery_on_hold,
                 sale_responsible = :sale_responsible
             WHERE id = :id";
-
     $stmt = $pdo->prepare($sql);
 
     foreach ($updates as $index => $row) {
-        // Ensure each update row contains an "id"
+        // Skip rows without an "id"
         if (!isset($row['id']) || empty($row['id'])) {
             continue;
         }
@@ -108,6 +110,7 @@ try {
         $term_of_payment = trim(getField($row, $expectedUpdateColumns['term_of_payment']));
         $billing_no = trim(getField($row, $expectedUpdateColumns['billing_no']));
         $method_of_payment = trim(getField($row, $expectedUpdateColumns['method_of_payment']));
+        $invoicing_and_delivery_on_hold = trim(getField($row, $expectedUpdateColumns['invoicing_and_delivery_on_hold']));
         $sale_responsible = trim(getField($row, $expectedUpdateColumns['sale_responsible']));
 
         $stmt->execute([
@@ -120,6 +123,7 @@ try {
             ':term_of_payment' => $term_of_payment,
             ':billing_no' => $billing_no,
             ':method_of_payment' => $method_of_payment,
+            ':invoicing_and_delivery_on_hold' => $invoicing_and_delivery_on_hold,
             ':sale_responsible' => $sale_responsible,
             ':id' => (int) $row['id']
         ]);
