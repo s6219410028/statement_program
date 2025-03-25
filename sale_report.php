@@ -1,33 +1,49 @@
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-header('Content-Type: text/html; charset=utf-8');
-
-include(__DIR__ . '/db_config.php');
-
-try {
-  // Fetch distinct sales responsible for the dropdown.
-  $stmtSales = $pdo->query("SELECT DISTINCT sale_responsible FROM sale_statements ORDER BY sale_responsible");
-  $saleResponsibles = $stmtSales->fetchAll(PDO::FETCH_COLUMN, 0);
-
-  // Get selected sales responsible from GET parameter; default to "ALL".
-  $selectedSaleResp = isset($_GET['sale_responsible']) ? trim($_GET['sale_responsible']) : "ALL";
-
-  // Build query for data. If a specific sales responsible is chosen, filter by it.
-  $sql = "SELECT * FROM sale_statements";
-  $params = [];
-  if ($selectedSaleResp !== "ALL") {
-    $sql .= " WHERE sale_responsible = :sr";
-    $params[':sr'] = $selectedSaleResp;
-  }
-  // Order by sale_responsible, state, city, customer_account, invoice_date.
-  $sql .= " ORDER BY sale_responsible, state, city, customer_account, invoice_date";
-  $stmt = $pdo->prepare($sql);
-  $stmt->execute($params);
-  $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-  die("Database error: " . $e->getMessage());
+session_start();
+if (!isset($_SESSION['user_id'])) {
+  header("Location: index.php");
+  exit;
 }
+include('db_config.php');
+
+// Get distinct Sales Responsible values
+$stmtSales = $pdo->query("SELECT DISTINCT sale_responsible FROM sale_statements ORDER BY sale_responsible");
+$saleResponsibles = $stmtSales->fetchAll(PDO::FETCH_COLUMN);
+
+// Get distinct States
+$stmtStates = $pdo->query("SELECT DISTINCT state FROM sale_statements ORDER BY state");
+$states = $stmtStates->fetchAll(PDO::FETCH_COLUMN);
+
+// Get distinct Uploader names
+$stmtUploaders = $pdo->query("SELECT DISTINCT uploader_name FROM sale_statements ORDER BY uploader_name");
+$uploaders = $stmtUploaders->fetchAll(PDO::FETCH_COLUMN);
+
+// Get selected filters from GET parameters (default is "ALL")
+$selectedSaleResp = isset($_GET['sale_responsible']) ? trim($_GET['sale_responsible']) : "ALL";
+$selectedState = isset($_GET['state']) ? trim($_GET['state']) : "ALL";
+$selectedUploader = isset($_GET['uploader']) ? trim($_GET['uploader']) : "ALL";
+
+// Build the query based on filters
+$sql = "SELECT * FROM sale_statements WHERE 1=1";
+$params = [];
+if ($selectedSaleResp !== "ALL") {
+  $sql .= " AND sale_responsible = :sale_responsible";
+  $params[':sale_responsible'] = $selectedSaleResp;
+}
+if ($selectedState !== "ALL") {
+  $sql .= " AND state = :state";
+  $params[':state'] = $selectedState;
+}
+if ($selectedUploader !== "ALL") {
+  $sql .= " AND uploader_name = :uploader_name";
+  $params[':uploader_name'] = $selectedUploader;
+}
+$sql .= " ORDER BY sale_responsible, state, city, customer_account, invoice_date";
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Pre-calculate grand totals.
 $grandCount = count($rows);
@@ -36,7 +52,7 @@ foreach ($rows as $r) {
   $grandTotal += (float) $r['invoice_amount'];
 }
 
-// Pre-calculate totals and counts by state and city.
+// Pre-calculate totals and counts by sale responsible, state, city.
 $saleRespCounts = [];
 $stateCounts = [];
 $cityCounts = [];
@@ -56,46 +72,39 @@ foreach ($rows as $row) {
 
 <head>
   <meta charset="UTF-8">
-  <title>รายงานบิลคงค้าง</title>
+  <title>รายการบิลคงค้าง</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0px;
+      margin: 0;
       background-color: white;
     }
 
-    h1 {
+    h2 {
       text-align: center;
-      margin-bottom: 0px;
-    }
-
-    .report-header {
-      text-align: center;
-      margin-bottom: 0px;
     }
 
     .filter-form {
       text-align: center;
-      margin-bottom: 0px;
+      margin-bottom: 10px;
     }
 
     .header-line {
       display: flex;
       justify-content: space-between;
-      margin: 0px 0px;
+      margin: 0 10px;
     }
 
     .city-header {
       text-align: center;
-      margin: 0px auto;
+      margin: 0 auto;
       background-color: white;
-      padding: 0px;
+      padding: 0;
       display: inline-block;
     }
 
     .table-container {
-      margin-left: 0px;
-      margin-bottom: 0px;
+      margin: 0 10px 10px 10px;
     }
 
     table {
@@ -104,16 +113,9 @@ foreach ($rows as $row) {
       margin-bottom: 0px;
     }
 
-    table,
     th,
     td {
-      vertical-align: middle;
-      border-collapse: collapse;
-    }
-
-    th,
-    td {
-      padding: 0px;
+      padding: 5px;
       text-align: center;
       font-size: 0.8rem;
     }
@@ -129,36 +131,7 @@ foreach ($rows as $row) {
 
     hr {
       border: 0;
-      margin: 0px 0;
-    }
-
-    .save-button,
-    .export-button,
-    .print-button {
-      display: inline-block;
-      margin: 10px 10px;
-      padding: 10px 10px;
-      background-color: #4caf50;
-      color: white;
-      border: solid 1px black;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-
-    .save-button:hover,
-    .export-button:hover,
-    .print-button:hover {
-      background-color: #45a049;
-    }
-
-    .cust-header {
-      background-color: white;
-      text-align: left;
-      padding: 0px;
-    }
-
-    .cust-total {
-      background-color: white;
+      margin: 0;
     }
 
     /* Navbar styling */
@@ -205,25 +178,25 @@ foreach ($rows as $row) {
 
     /* Loading screen styling */
     #loadingScreen {
+      display: none;
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.5);
-      color: #fff;
-      display: none;
+      z-index: 3000;
       align-items: center;
       justify-content: center;
+      color: #fff;
       font-size: 2rem;
-      z-index: 3000;
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 </head>
 
 <body>
-
   <!-- Navbar -->
   <div id="navbar">
     <a href="dashboard.php">Dashboard</a>
@@ -242,7 +215,7 @@ foreach ($rows as $row) {
     <span>Loading...</span>
   </div>
 
-  <!-- Dropdown filter for Sales Responsible -->
+  <!-- Filter Form -->
   <div class="filter-form">
     <form method="get" action="">
       <label for="sale_responsible">Select Sales Responsible: </label>
@@ -256,22 +229,46 @@ foreach ($rows as $row) {
           </option>
         <?php endforeach; ?>
       </select>
+
+      <label for="state">Select State: </label>
+      <select name="state" id="state">
+        <option value="ALL" <?php if ($selectedState == "ALL")
+          echo "selected"; ?>>-- All --</option>
+        <?php foreach ($states as $st): ?>
+          <option value="<?php echo htmlspecialchars($st); ?>" <?php if ($selectedState == $st)
+               echo "selected"; ?>>
+            <?php echo htmlspecialchars($st); ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+
+      <label for="uploader">Select Uploader: </label>
+      <select name="uploader" id="uploader">
+        <option value="ALL" <?php if ($selectedUploader == "ALL")
+          echo "selected"; ?>>-- All --</option>
+        <?php foreach ($uploaders as $up): ?>
+          <option value="<?php echo htmlspecialchars($up); ?>" <?php if ($selectedUploader == $up)
+               echo "selected"; ?>>
+            <?php echo htmlspecialchars($up); ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
       <button type="submit">Filter</button>
     </form>
   </div>
 
-  <!-- Wrap the entire report in a container -->
+  <!-- Report Content -->
   <div id="reportContent">
     <div class="report-header">
       <h2>รายการบิลคงค้าง</h2>
     </div>
     <!-- Global header -->
     <div class="header-line" style="font-size:1.0rem; color:#333;">
-      <?php
-      echo "<p>Sale Responsible:  " . htmlspecialchars($selectedSaleResp) . "</p>";
-      echo "<p>จำนวนบิลทั้งหมด:  " . $grandCount . " บิล</p>";
-      echo "<p>ยอดรวมทั้งหมด:  " . number_format($grandTotal, 2) . " บาท</p>";
-      ?>
+      <p>Sale Responsible: <?php echo htmlspecialchars($selectedSaleResp); ?></p>
+      <p>State: <?php echo htmlspecialchars($selectedState); ?></p>
+      <p>Uploader: <?php echo htmlspecialchars($selectedUploader); ?></p>
+      <p>จำนวนบิลทั้งหมด: <?php echo $grandCount; ?> บิล</p>
+      <p>ยอดรวมทั้งหมด: <?php echo number_format($grandTotal, 2); ?> บาท</p>
     </div>
     <hr>
 
@@ -304,7 +301,6 @@ foreach ($rows as $row) {
         $currentCity = null;
         $currentCustomer = null;
       }
-
       $saleRespTotal += $invoiceAmount;
 
       // --- Group by State (show once per state) ---
@@ -322,9 +318,8 @@ foreach ($rows as $row) {
       $cityKey = $currentState . '|' . $row['city'];
       if ($row['city'] !== $currentCity) {
         if ($currentCustomer !== null) {
-          // Output customer totals footer before closing previous table.
           echo "<tr class='cust-total'>
-              <td colspan='3' style='text-align:right;'> </td>
+              <td colspan='3' style='text-align:right;'></td>
               <td>" . number_format($customerInvoiceTotal, 2) . "</td>
               <td>" . number_format($customerNotSettledTotal, 2) . "</td>
               <td colspan='4'></td>
@@ -334,9 +329,7 @@ foreach ($rows as $row) {
         }
         $currentCity = $row['city'];
         $cityCount = isset($cityCounts[$cityKey]) ? $cityCounts[$cityKey] : 0;
-        echo "<div class='city-header'>";
-        echo "เขต >> " . htmlspecialchars($currentCity) . " " . $cityCount;
-        echo "</div>";
+        echo "<div class='city-header'>เขต >> " . htmlspecialchars($currentCity) . " " . $cityCount . "</div>";
         echo "<div class='table-container'><table border='0' cellpadding='5' cellspacing='0'>";
         echo "<tr><td colspan='11' class='cust-header'>";
         echo "<span style='font-size:1.0em; margin-right:20px;'>" . htmlspecialchars($row['customer_account']) . "</span>";
@@ -350,10 +343,10 @@ foreach ($rows as $row) {
             <th>Amount Not Settled</th>
             <th>Status</th>
             <th>Remark</th>
-            <th>Due Date</th>
+            <th>Term Of Payment</th>
             <th>Billing NO.</th>
             <th>Method of Payment</th>
-            <th>Sale</th>
+            <th>Sale responsible</th>
           </tr>";
         $cityRowNum = 0;
         $customerInvoiceTotal = 0;
@@ -361,7 +354,7 @@ foreach ($rows as $row) {
         $currentCustomer = $row['customer_account'];
       } elseif ($row['customer_account'] !== $currentCustomer) {
         echo "<tr class='cust-total'>
-            <td colspan='3' style='text-align:right;'> </td>
+            <td colspan='3' style='text-align:right;'></td>
             <td>" . number_format($customerInvoiceTotal, 2) . "</td>
             <td>" . number_format($customerNotSettledTotal, 2) . "</td>
             <td colspan='4'></td>
@@ -384,10 +377,10 @@ foreach ($rows as $row) {
             <th>Amount Not Settled</th>
             <th>Status</th>
             <th>Remark</th>
-            <th>Due Date</th>
+            <th>Term Of Payment</th>
             <th>Billing NO.</th>
             <th>Method of Payment</th>
-            <th>Sale</th>
+            <th>Sale respoonsible</th>
           </tr>";
       }
 
@@ -399,10 +392,9 @@ foreach ($rows as $row) {
       $invoiceDateFormatted = (!empty($invoiceDate) && $invoiceDate != "0000-00-00")
         ? date('d/m/Y', strtotime($invoiceDate))
         : "";
-      $dueDate = $row['due_date'];
-      $dueDateFormatted = (!empty($dueDate) && $dueDate != "0000-00-00")
-        ? date('d/m/Y', strtotime($dueDate))
-        : "";
+
+      // Instead of formatting due_date, we output term_of_payment directly.
+      $termOfPayment = $row['term_of_payment'];
 
       echo "<tr data-id='" . htmlspecialchars($row['id']) . "'>";
       echo "<td>" . $cityRowNum . "</td>";
@@ -412,7 +404,8 @@ foreach ($rows as $row) {
       echo "<td contenteditable='true' class='editable'>" . number_format((float) $row['amount_not_settled'], 2) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['status']) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['remark']) . "</td>";
-      echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($dueDateFormatted) . "</td>";
+      // Changed column: now show Term Of Payment instead of Due Date.
+      echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($termOfPayment) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['billing_no']) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['method_of_payment']) . "</td>";
       echo "<td contenteditable='true' class='editable'>" . htmlspecialchars($row['sale_responsible']) . "</td>";
@@ -420,7 +413,7 @@ foreach ($rows as $row) {
     }
     if ($currentCustomer !== null) {
       echo "<tr class='cust-total'>
-          <td colspan='3' style='text-align:right;'> </td>
+          <td colspan='3' style='text-align:right;'></td>
           <td>" . number_format($customerInvoiceTotal, 2) . "</td>
           <td>" . number_format($customerNotSettledTotal, 2) . "</td>
           <td colspan='4'></td>
@@ -429,11 +422,12 @@ foreach ($rows as $row) {
     }
     if ($currentSaleResp !== null) {
       echo "<div class='header-line'>Sale Responsible: " . htmlspecialchars($currentSaleResp) .
-        "  Invoice Count: " . $saleRespCounts[$currentSaleResp] .
-        "  Total Bill: " . number_format($saleRespTotal, 2) . "</div>";
+        " | Invoice Count: " . $saleRespCounts[$currentSaleResp] .
+        " | Total Bill: " . number_format($saleRespTotal, 2) . "</div>";
       echo "<hr>";
     }
     ?>
+
     <script>
       // Loading overlay functions
       function showLoading() {
@@ -464,7 +458,7 @@ foreach ($rows as $row) {
           // cells[4]: Amount Not Settled
           // cells[5]: Status
           // cells[6]: Remark
-          // cells[7]: Due Date
+          // cells[7]: Term Of Payment (changed)
           // cells[8]: Billing NO.
           // cells[9]: Method of Payment
           // cells[10]: Sale
@@ -476,10 +470,10 @@ foreach ($rows as $row) {
             amount_not_settled: cells[4].innerText.trim(),
             status: cells[5].innerText.trim(),
             remark: cells[6].innerText.trim(),
-            due_date: cells[7].innerText.trim(),
+            term_of_payment: cells[7].innerText.trim(),
             billing_no: cells[8].innerText.trim(),
             method_of_payment: cells[9].innerText.trim(),
-            sale: cells[10].innerText.trim()
+            sale_responsible: cells[10].innerText.trim()
           });
         });
         showLoading();

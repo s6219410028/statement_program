@@ -6,11 +6,14 @@ header('Content-Type: application/json');
 
 include(__DIR__ . '/db_config.php');
 
-function cleanNumeric($numStr)
-{
-    return str_replace([",", " "], "", trim($numStr));
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    ob_end_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+    exit;
 }
 
+// Helper function: Convert a date string to 'Y-m-d' format.
 function convertDate($dateStr)
 {
     $dateStr = trim($dateStr);
@@ -25,56 +28,103 @@ function convertDate($dateStr)
             return $dateObj->format('Y-m-d');
         }
     }
-    throw new Exception("Invalid date format: '$dateStr'");
+    // Return null if the date cannot be converted.
+    return null;
+}
+
+// Helper function: Remove commas and spaces from numeric strings.
+function cleanNumeric($numStr)
+{
+    return str_replace([",", " "], "", trim($numStr));
+}
+
+// Helper function: Retrieve a field value from an update row by expected key (case-insensitive).
+function getField($row, $expectedKey)
+{
+    foreach ($row as $key => $value) {
+        if (strcasecmp(trim($key), $expectedKey) == 0) {
+            return $value;
+        }
+    }
+    return '';
 }
 
 try {
     $rawInput = file_get_contents('php://input');
     $data = json_decode($rawInput, true);
+
+    // Expecting payload to contain "updates"
     if (!$data || !isset($data['updates']) || !is_array($data['updates'])) {
         ob_end_clean();
-        echo json_encode(['status' => 'error', 'message' => 'Invalid data']);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid data format']);
         exit;
     }
+
     $updates = $data['updates'];
 
-    $sql = "UPDATE sale_statements
-            SET
-              invoice = :invoice,
-              invoice_date = :invoice_date,
-              invoice_amount = :invoice_amount,
-              amount_not_settled = :amount_not_settled,
-              status = :status,
-              remark = IF(:remark1 = '', remark, :remark2),
-              due_date = :due_date,
-              billing_no = :billing_no,
-              method_of_payment = :method_of_payment,
-              sale_responsible = IF(:sale1 = '', sale_responsible, :sale2)
+    // Define the expected update columns matching the client payload keys.
+    $expectedUpdateColumns = [
+        'invoice' => 'invoice',
+        'invoice_date' => 'invoice_date',
+        'invoice_amount' => 'invoice_amount',
+        'amount_not_settled' => 'amount_not_settled',
+        'status' => 'status',
+        'remark' => 'remark',
+        'term_of_payment' => 'term_of_payment',
+        'billing_no' => 'billing_no',
+        'method_of_payment' => 'method_of_payment',
+        'sale_responsible' => 'sale_responsible'
+    ];
+
+    // Prepare the UPDATE statement with the correct column name.
+    $sql = "UPDATE sale_statements SET
+                invoice = :invoice,
+                invoice_date = :invoice_date,
+                invoice_amount = :invoice_amount,
+                amount_not_settled = :amount_not_settled,
+                status = :status,
+                remark = :remark,
+                term_of_payment = :term_of_payment,
+                billing_no = :billing_no,
+                method_of_payment = :method_of_payment,
+                sale_responsible = :sale_responsible
             WHERE id = :id";
 
     $stmt = $pdo->prepare($sql);
 
-    foreach ($updates as $row) {
-        if (!isset($row['id']))
+    foreach ($updates as $index => $row) {
+        // Ensure each update row contains an "id"
+        if (!isset($row['id']) || empty($row['id'])) {
             continue;
+        }
+
+        $invoice = trim(getField($row, $expectedUpdateColumns['invoice']));
+        $invoice_date_raw = trim(getField($row, $expectedUpdateColumns['invoice_date']));
+        $invoice_date = convertDate($invoice_date_raw);
+        $invoice_amount = cleanNumeric(getField($row, $expectedUpdateColumns['invoice_amount']));
+        $amount_not_settled = cleanNumeric(getField($row, $expectedUpdateColumns['amount_not_settled']));
+        $status = trim(getField($row, $expectedUpdateColumns['status']));
+        $remark = trim(getField($row, $expectedUpdateColumns['remark']));
+        $term_of_payment = trim(getField($row, $expectedUpdateColumns['term_of_payment']));
+        $billing_no = trim(getField($row, $expectedUpdateColumns['billing_no']));
+        $method_of_payment = trim(getField($row, $expectedUpdateColumns['method_of_payment']));
+        $sale_responsible = trim(getField($row, $expectedUpdateColumns['sale_responsible']));
+
         $stmt->execute([
-            ':invoice' => trim($row['invoice']),
-            // Convert invoice date using convertDate
-            ':invoice_date' => convertDate(trim($row['invoice_date'])),
-            ':invoice_amount' => cleanNumeric($row['invoice_amount']),
-            ':amount_not_settled' => cleanNumeric($row['amount_not_settled']),
-            ':status' => trim($row['status']),
-            ':remark1' => trim($row['remark']),
-            ':remark2' => trim($row['remark']),
-            ':due_date' => convertDate(trim($row['due_date'])),
-            ':billing_no' => trim($row['billing_no']),
-            // Use method_of_payment key from the updated mapping
-            ':method_of_payment' => trim($row['method_of_payment']),
-            ':sale1' => trim($row['sale']),
-            ':sale2' => trim($row['sale']),
+            ':invoice' => $invoice,
+            ':invoice_date' => $invoice_date,
+            ':invoice_amount' => $invoice_amount,
+            ':amount_not_settled' => $amount_not_settled,
+            ':status' => $status,
+            ':remark' => $remark,
+            ':term_of_payment' => $term_of_payment,
+            ':billing_no' => $billing_no,
+            ':method_of_payment' => $method_of_payment,
+            ':sale_responsible' => $sale_responsible,
             ':id' => (int) $row['id']
         ]);
     }
+
     ob_end_clean();
     echo json_encode(['status' => 'success', 'message' => 'Changes saved successfully!']);
 } catch (Exception $e) {
