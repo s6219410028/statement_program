@@ -242,17 +242,7 @@ foreach ($rows as $row) {
         <?php endforeach; ?>
       </select>
 
-      <label for="uploader">Select Uploader: </label>
-      <select name="uploader" id="uploader">
-        <option value="ALL" <?php if ($selectedUploader == "ALL")
-          echo "selected"; ?>>-- All --</option>
-        <?php foreach ($uploaders as $up): ?>
-          <option value="<?php echo htmlspecialchars($up); ?>" <?php if ($selectedUploader == $up)
-               echo "selected"; ?>>
-            <?php echo htmlspecialchars($up); ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
+
       <button type="submit">Filter</button>
     </form>
   </div>
@@ -265,11 +255,10 @@ foreach ($rows as $row) {
     <!-- Global header -->
     <div class="header-line" style="font-size:1.0rem; color:#333;">
       <p>Sale Responsible: <?php echo htmlspecialchars($selectedSaleResp); ?></p>
-      <p>State: <?php echo htmlspecialchars($selectedState); ?></p>
-      <p>Uploader: <?php echo htmlspecialchars($selectedUploader); ?></p>
       <p>จำนวนบิลทั้งหมด: <?php echo $grandCount; ?> บิล</p>
       <p>ยอดรวมทั้งหมด: <?php echo number_format($grandTotal, 2); ?> บาท</p>
     </div>
+    <div style="height:0px; overflow:hidden;"></div>
     <hr>
 
     <?php
@@ -287,22 +276,22 @@ foreach ($rows as $row) {
     foreach ($rows as $row) {
       $invoiceAmount = (float) $row['invoice_amount'];
 
-      // --- Group by Sale Responsible ---
-      if ($row['sale_responsible'] !== $currentSaleResp) {
-        if ($currentSaleResp !== null) {
-          echo "<div class='header-line'>Sale Responsible: " . htmlspecialchars($currentSaleResp) .
-            " | Invoice Count: " . $saleRespCounts[$currentSaleResp] .
-            " | Total Bill: " . number_format($saleRespTotal, 2) . "</div>";
-          echo "<hr>";
-        }
-        $currentSaleResp = $row['sale_responsible'];
-        $saleRespTotal = 0;
-        $currentState = null;
-        $currentCity = null;
-        $currentCustomer = null;
-      }
-      $saleRespTotal += $invoiceAmount;
-
+      // // --- Group by Sale Responsible ---
+      // if ($row['sale_responsible'] !== $currentSaleResp) {
+      //   if ($currentSaleResp !== null) {
+      //     echo "<div class='header-line'>Sale Responsible: " . htmlspecialchars($currentSaleResp) .
+      //       " | Invoice Count: " . $saleRespCounts[$currentSaleResp] .
+      //       " | Total Bill: " . number_format($saleRespTotal, 2) . "</div>";
+      //     echo "<hr>";
+      //   }
+      //   $currentSaleResp = $row['sale_responsible'];
+      //   $saleRespTotal = 0;
+      //   $currentState = null;
+      //   $currentCity = null;
+      //   $currentCustomer = null;
+      // }
+      // $saleRespTotal += $invoiceAmount;
+    
       // --- Group by State (show once per state) ---
       if ($row['state'] !== $currentState) {
         if ($currentState !== null) {
@@ -319,11 +308,20 @@ foreach ($rows as $row) {
       if ($row['city'] !== $currentCity) {
         if ($currentCustomer !== null) {
           echo "<tr class='cust-total'>
-              <td colspan='3' style='text-align:right;'></td>
-              <td>" . number_format($customerInvoiceTotal, 2) . "</td>
-              <td>" . number_format($customerNotSettledTotal, 2) . "</td>
-              <td colspan='4'></td>
-            </tr>";
+          <td></td> <!-- col1: ลำดับ -->
+          <td></td> <!-- col2: Invoice -->
+          <td></td> <!-- col3: Invoice Date -->
+          <td>" . number_format($customerInvoiceTotal, 2) . "</td> <!-- col4: Invoice Amount -->
+          <td>" . number_format($customerNotSettledTotal, 2) . "</td> <!-- col5: Amount Not Settled -->
+          <td></td> <!-- col6: Status -->
+          <td></td> <!-- col7: Remark -->
+          <td></td> <!-- col8: Term Of Payment -->
+          <td></td> <!-- col9: Billing NO. -->
+          <td></td> <!-- col10: Method of Payment -->
+          <td></td> <!-- col11: Invoicing and delivery on hold -->
+          <td></td> <!-- col12: Sale responsible -->
+        </tr>";
+
           echo "</table></div>";
           $currentCustomer = null;
         }
@@ -331,7 +329,7 @@ foreach ($rows as $row) {
         $cityCount = isset($cityCounts[$cityKey]) ? $cityCounts[$cityKey] : 0;
         echo "<div class='city-header'>เขต >> " . htmlspecialchars($currentCity) . " " . $cityCount . "</div>";
         echo "<div class='table-container'><table border='0' cellpadding='5' cellspacing='0'>";
-        echo "<tr><td colspan='11' class='cust-header'>";
+        echo "<tr><td colspan='12' class='cust-header'>";
         echo "<span style='font-size:1.0em; margin-right:20px;'>" . htmlspecialchars($row['customer_account']) . "</span>";
         echo "<span style='font-size:1.0em;'>" . htmlspecialchars($row['name']) . "</span>";
         echo "</td></tr>";
@@ -355,20 +353,28 @@ foreach ($rows as $row) {
         $currentCustomer = $row['customer_account'];
       } elseif ($row['customer_account'] !== $currentCustomer) {
         echo "<tr class='cust-total'>
-            <td colspan='3' style='text-align:right;'></td>
-            <td>" . number_format($customerInvoiceTotal, 2) . "</td>
-            <td>" . number_format($customerNotSettledTotal, 2) . "</td>
-            <td colspan='4'></td>
-          </tr>";
+          <td></td>  <!-- Column 1: ลำดับ -->
+          <td></td>  <!-- Column 2: Invoice -->
+          <td></td>  <!-- Column 3: Invoice Date -->
+          <td>" . number_format($customerInvoiceTotal, 2) . "</td>  <!-- Column 4: Invoice Amount -->
+          <td>" . number_format($customerNotSettledTotal, 2) . "</td>  <!-- Column 5: Amount Not Settled -->
+          <td></td>  <!-- Column 6: Status -->
+          <td></td>  <!-- Column 7: Remark -->
+          <td></td>  <!-- Column 8: Term Of Payment -->
+          <td></td>  <!-- Column 9: Billing NO. -->
+          <td></td>  <!-- Column 10: Method of Payment -->
+          <td></td>  <!-- Column 11: Invoicing and delivery on hold -->
+          <td></td>  <!-- Column 12: Sale responsible -->
+        </tr>";
         echo "</table></div>";
         $currentCustomer = $row['customer_account'];
         $cityRowNum = 0;
         $customerInvoiceTotal = 0;
         $customerNotSettledTotal = 0;
         echo "<div class='table-container'><table border='0' cellpadding='5' cellspacing='0'>";
-        echo "<tr><td colspan='11' class='cust-header'>";
-        echo "<span style='font-size:1.0em; margin-right:20px;'>Customer Account: " . htmlspecialchars($row['customer_account']) . "</span>";
-        echo "<span style='font-size:1.0em;'>Name: " . htmlspecialchars($row['name']) . "</span>";
+        echo "<tr><td colspan='12' class='cust-header'>";
+        echo "<span style='font-size:1.0em; margin-right:20px;'>" . htmlspecialchars($row['customer_account']) . "</span>";
+        echo "<span style='font-size:1.0em;'>" . htmlspecialchars($row['name']) . "</span>";
         echo "</td></tr>";
         echo "<tr>
             <th>ลำดับ</th>
@@ -416,10 +422,18 @@ foreach ($rows as $row) {
     }
     if ($currentCustomer !== null) {
       echo "<tr class='cust-total'>
-          <td colspan='3' style='text-align:right;'></td>
-          <td>" . number_format($customerInvoiceTotal, 2) . "</td>
-          <td>" . number_format($customerNotSettledTotal, 2) . "</td>
-          <td colspan='4'></td>
+          <td></td>  <!-- Column 1: ลำดับ -->
+          <td></td>  <!-- Column 2: Invoice -->
+          <td></td>  <!-- Column 3: Invoice Date -->
+          <td>" . number_format($customerInvoiceTotal, 2) . "</td>  <!-- Column 4: Invoice Amount -->
+          <td>" . number_format($customerNotSettledTotal, 2) . "</td>  <!-- Column 5: Amount Not Settled -->
+          <td></td>  <!-- Column 6: Status -->
+          <td></td>  <!-- Column 7: Remark -->
+          <td></td>  <!-- Column 8: Term Of Payment -->
+          <td></td>  <!-- Column 9: Billing NO. -->
+          <td></td>  <!-- Column 10: Method of Payment -->
+          <td></td>  <!-- Column 11: Invoicing and delivery on hold -->
+          <td></td>  <!-- Column 12: Sale responsible -->
         </tr>";
       echo "</table></div>";
     }
@@ -528,40 +542,154 @@ foreach ($rows as $row) {
         }
       }
 
-      // Export to Excel function using SheetJS.
+
+
+
       function exportToExcel() {
         var exportData = [];
+        var mergeRanges = [];
         var container = document.getElementById("reportContent");
+
+        // Define the new detailed header row.
+        var newHeaders = [
+          "ลำดับ",
+          "ใบกำกับภาษี",
+          "วันที่ในบิล",
+          "จำนวนเงินในบิล",
+          "ยอดที่ต้องชำระ",
+          "สถานะ",
+          "remark",
+          "Term",
+          "วางบิล",
+          "การชำระ",
+          "on hold",
+          "Sale"
+        ];
+
+        // Loop through each child element of reportContent.
         for (var i = 0; i < container.children.length; i++) {
           var el = container.children[i];
           if (el.classList.contains("filter-form")) continue;
-          if (el.classList.contains("header-line") || el.classList.contains("city-header")) {
-            exportData.push([el.innerText.trim()]);
-            exportData.push([]);
-          } else if (el.classList.contains("table-container")) {
+
+          // For group header elements outside of tables.
+          if (
+            el.classList.contains("report-header") ||
+            el.classList.contains("cust-header") ||
+            el.classList.contains("header-line") ||
+            el.classList.contains("city-header")
+          ) {
+            var rowArr = [el.innerText.trim()];
+            while (rowArr.length < 12) { rowArr.push(""); }
+            rowArr = rowArr.slice(0, 12);
+            var mergeRowIndex = exportData.length;
+            exportData.push(rowArr);
+            mergeRanges.push({ s: { r: mergeRowIndex, c: 0 }, e: { r: mergeRowIndex, c: 11 } });
+            exportData.push([]); // blank row for spacing.
+          }
+          // For table containers (detailed rows)
+          else if (el.classList.contains("table-container")) {
             var table = el.querySelector("table");
             if (table) {
               var rows = table.querySelectorAll("tr");
               rows.forEach(function (row) {
+                // Detect if this row is a customer header row by checking for the "cust-header" class.
+                var isCustHeader = row.classList.contains("cust-header") ||
+                  (row.firstElementChild && row.firstElementChild.classList.contains("cust-header"));
                 var rowData = [];
                 var cells = row.querySelectorAll("th, td");
                 cells.forEach(function (cell) {
                   rowData.push(cell.innerText.trim());
                 });
+                // Force rowData to have exactly 12 cells.
+                if (rowData.length < 12) {
+                  while (rowData.length < 12) { rowData.push(""); }
+                } else if (rowData.length > 12) {
+                  rowData = rowData.slice(0, 12);
+                }
+                // Replace detailed header row (detected by first cell "ลำดับ") with newHeaders.
+                if (rowData[0] === "ลำดับ") {
+                  rowData = newHeaders;
+                }
                 exportData.push(rowData);
+                // If this row is a customer header row, add a merge range.
+                if (isCustHeader) {
+                  var mergeRowIndex = exportData.length - 1;
+                  mergeRanges.push({ s: { r: mergeRowIndex, c: 0 }, e: { r: mergeRowIndex, c: 11 } });
+                }
               });
-              exportData.push([]);
+              exportData.push([]); // spacing row after table.
             }
-          } else if (el.tagName === "DIV" || el.tagName === "P" || el.tagName === "H2" || el.tagName === "H3") {
+          }
+          // For other block-level elements.
+          else if (
+            el.tagName === "DIV" ||
+            el.tagName === "P" ||
+            el.tagName === "H2" ||
+            el.tagName === "H3"
+          ) {
             if (el.innerText && el.innerText.trim() !== "") {
-              exportData.push([el.innerText.trim()]);
+              var divRow = [el.innerText.trim()];
+              while (divRow.length < 12) { divRow.push(""); }
+              divRow = divRow.slice(0, 12);
+              exportData.push(divRow);
               exportData.push([]);
             }
-          } else if (el.tagName === "HR") {
+          }
+          else if (el.tagName === "HR") {
             exportData.push([]);
           }
         }
+
+        // Clean cells: ensure empty cells are exactly empty string.
+        for (var r = 0; r < exportData.length; r++) {
+          for (var c = 0; c < exportData[r].length; c++) {
+            if (!exportData[r][c] || exportData[r][c].trim() === "") {
+              exportData[r][c] = "";
+            }
+          }
+        }
+
+        // Create worksheet.
         var ws = XLSX.utils.aoa_to_sheet(exportData);
+
+        // Set cell styles.
+        var range = XLSX.utils.decode_range(ws["!ref"]);
+        for (var R = range.s.r; R <= range.e.r; R++) {
+          for (var C = range.s.c; C <= range.e.c; C++) {
+            var cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            if (ws[cellAddress]) {
+              if (!ws[cellAddress].s) ws[cellAddress].s = {};
+              // For the detailed header row, check if first cell equals newHeaders[0].
+              if (exportData[R] && exportData[R][0] === newHeaders[0]) {
+                ws[cellAddress].s.alignment = { vertical: "top", horizontal: "center", wrapText: true, indent: 0 };
+              } else {
+                ws[cellAddress].s.alignment = { vertical: "top", horizontal: "center", wrapText: false, indent: 0 };
+              }
+            }
+          }
+        }
+
+        // Set column widths based on new header text.
+        ws["!cols"] = [
+          { wch: 5 },   // ลำดับ
+          { wch: 10 },  // ใบกำกับภาษี
+          { wch: 12 },  // วันที่ในบิล
+          { wch: 14 },  // จำนวนเงินในบิล
+          { wch: 14 },  // ยอดที่ต้องชำระ
+          { wch: 7 },   // สถานะ
+          { wch: 7 },   // remark
+          { wch: 7 },  // Term Of Payment
+          { wch: 8 },  // วางบิล
+          { wch: 8 },  // การชำระ
+          { wch: 8 },  // invoicing and delivery on hold
+          { wch: 10 }   // Sale
+        ];
+
+        // Apply merge ranges.
+        if (mergeRanges.length > 0) {
+          ws["!merges"] = mergeRanges;
+        }
+
         var wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Report");
         var wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -572,9 +700,12 @@ foreach ($rows as $row) {
         a.download = "report.xlsx";
         document.body.appendChild(a);
         a.click();
-        document.body.remove
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }
+
+
+
     </script>
 </body>
 
